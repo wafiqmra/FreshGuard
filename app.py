@@ -60,24 +60,44 @@ def update_product(product_id, name, desc, expiry, image_filename):
 
 @app.route('/')
 def home():
-    if 'user_id' not in session:
+    try:
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+
+        send_expiry_notifications()
+
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            SELECT id, product_name, description, expiry_date, image 
+            FROM products 
+            WHERE user_id=%s
+            ORDER BY expiry_date ASC
+        """, (session['user_id'],))
+        products = cur.fetchall()
+        cur.close()
+
+        near_expiry_products = []
+        today = datetime.now().date()
+        
+        for p in products:
+            expiry_date = p[3]
+            if isinstance(expiry_date, str):
+                expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
+            if is_near_expiry(expiry_date):
+                near_expiry_products.append(p)
+
+        return render_template('index.html', 
+                            products=products, 
+                            near_expiry_products=near_expiry_products,
+                            today=today)
+    except MySQLdb.Error as e:
+        app.logger.error(f"Database error: {e}")
+        flash("Error accessing your products. Please try again.", "danger")
         return redirect(url_for('login'))
-
-    send_expiry_notifications()
-
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT id, product_name, description, expiry_date, image FROM products WHERE user_id=%s", (session['user_id'],))
-    products = cur.fetchall()
-
-    near_expiry_products = []
-    for p in products:
-        expiry_date = p[3]
-        if isinstance(expiry_date, str):
-            expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
-        if is_near_expiry(expiry_date):
-            near_expiry_products.append(p)
-
-    return render_template('index.html', products=products, near_expiry_products=near_expiry_products)
+    except Exception as e:
+        app.logger.error(f"Unexpected error: {e}")
+        flash("An unexpected error occurred", "danger")
+        return redirect(url_for('login'))
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
