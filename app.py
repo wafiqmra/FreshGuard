@@ -1,0 +1,201 @@
+import os
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+from flask_mysqldb import MySQL
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from datetime import datetime
+from flask_mail import Mail, Message
+from config import Config
+from utils import is_near_expiry
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = Flask(__name__)
+app.config.from_object(Config)
+
+mysql = MySQL(app)
+mail = Mail(app)
+
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Pastikan folder uploads ada
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/')
+def home():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    send_expiry_notifications()
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, product_name, description, expiry_date, image FROM products WHERE user_id=%s", (session['user_id'],))
+    products = cur.fetchall()
+
+    # Check notifikasi produk mendekati kadaluarsa
+    near_expiry_products = []
+    for p in products:
+        expiry_date = p[3]
+        if isinstance(expiry_date, str):
+            expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
+        if is_near_expiry(expiry_date):
+            near_expiry_products.append(p)
+
+    return render_template('index.html', products=products, near_expiry_products=near_expiry_products)
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        hashed_password = generate_password_hash(password)
+
+        cur = mysql.connection.cursor()
+        # Cek user/email sudah ada?
+        cur.execute("SELECT id FROM users WHERE email=%s OR username=%s", (email, username))
+        existing = cur.fetchone()
+        if existing:
+            flash("Email atau username sudah terdaftar", 'danger')
+            return redirect(url_for('signup'))
+
+        cur.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
+                    (username, email, hashed_password))
+        mysql.connection.commit()
+        flash("Registrasi berhasil, silahkan login", "success")
+        return redirect(url_for('login'))
+
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT id, password, username FROM users WHERE email=%s", (email,))
+        user = cur.fetchone()
+        if user and check_password_hash(user[1], password):
+            session['user_id'] = user[0]
+            session['username'] = user[2]
+            flash(f"Selamat datang, {user[2]}!", "success")
+            return redirect(url_for('home'))
+        else:
+            flash("Email atau password salah", "danger")
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("Anda berhasil logout", "info")
+    return redirect(url_for('login'))
+
+@app.route('/add_product', methods=['POST'])
+def add_product():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    product_name = request.form['product_name']
+    description = request.form['description']
+    expiry_date = request.form['expiry_date']
+
+    # Upload gambar
+    if 'image' not in request.files:
+        flash("Tidak ada file gambar", "danger")
+        return redirect(url_for('home'))
+
+    file = request.files['image']
+    if file.filename == '':
+        flash("Tidak ada gambar yang dipilih", "danger")
+        return redirect(url_for('home'))
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO products (user_id, product_name, description, expiry_date, image) VALUES (%s, %s, %s, %s, %s)",
+                    (session['user_id'], product_name, description, expiry_date, filename))
+        mysql.connection.commit()
+        flash("Produk berhasil ditambahkan", "success")
+    else:
+        flash("Format gambar tidak didukung", "danger")
+
+    return redirect(url_for('home'))
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+def send_expiry_notifications():
+    """Kirim email notif ke semua user yang punya produk mendekati expired."""
+    cur = mysql.connection.cursor()
+    cur.execute("""
+    SELECT u.email, u.username, p.product_name, p.expiry_date, p.id
+    FROM users u JOIN products p ON u.id = p.user_id
+    WHERE p.notified = FALSE
+    """)
+    all_products = cur.fetchall()
+
+    users_notified = set()
+
+    for email, username, product_name, expiry_date, product_id in all_products:
+        if isinstance(expiry_date, str):
+            expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
+
+        if is_near_expiry(expiry_date):
+            if email not in users_notified:
+                users_notified.add(email)
+
+            msg = Message(
+                subject='Peringatan Produk Mendekati Kadaluarsa',
+                sender=app.config['MAIL_USERNAME'],
+                recipients=[email]
+            )
+            msg.body = f"Halo {username}, produk '{product_name}' Anda mendekati masa kadaluarsa pada tanggal {expiry_date}. Segera gunakan atau buang produk tersebut."
+            
+            try:
+                mail.send(msg)
+                print(f"Email terkirim ke {email} untuk produk {product_name}")
+    
+                # tandai produk sebagai sudah dikirimi notifikasi
+                cur2 = mysql.connection.cursor()
+                cur2.execute("UPDATE products SET notified = TRUE WHERE id = %s", (product_id,))
+                mysql.connection.commit()
+
+            except Exception as e:
+                print(f"Gagal kirim email ke {email}: {e}")
+
+
+
+# Cron job / scheduler bisa pakai APScheduler, di sini kita buat route manual trigger (for demo)
+@app.route('/send_notifications')
+def send_notifications():
+    send_expiry_notifications()
+    return "Email notifikasi terkirim (jika ada produk mendekati kadaluarsa)."
+
+@app.route("/test_email")
+def test_email():
+    msg = Message("Test Email from FreshGuard",
+                  recipients=["acckosonganyua@gmail.com"])
+    msg.body = "Halo! Ini adalah email test dari FreshGuard."
+    try:
+        mail.send(msg)
+        return "Email test berhasil dikirim!"
+    except Exception as e:
+        return f"Gagal kirim email: {e}"
+
+
+
+if __name__ == '__main__':
+    app.secret_key = app.config['SECRET_KEY']
+    app.run(debug=True)

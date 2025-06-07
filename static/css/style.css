@@ -1,0 +1,84 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 0;
+}
+
+nav {
+    background: #3498db;
+    padding: 10px 20px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+nav a {
+    color: white;
+    margin-left: 10px;
+    text-decoration: none;
+}
+
+.container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+input, textarea {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0 15px 0;
+    box-sizing: border-box;
+}
+
+button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+button:hover {
+    background: #2980b9;
+}
+
+.product-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.product-item {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    width: 200px;
+    background: #fafafa;
+    text-align: center;
+}
+
+.notification {
+    background: #ffdddd;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #f44336;
+    color: #f44336;
+    border-radius: 6px;
+}
+
+.flash-messages .alert {
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.alert.success { background: #d4edda; color: #155724; }
+.alert.danger { background: #f8d7da; color: #721c24; }
+.alert.info { background: #d1ecf1; color: #0c5460; }

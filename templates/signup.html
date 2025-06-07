@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block content %}
+<h2>Sign Up FreshGuard</h2>
+<form method="post" action="{{ url_for('signup') }}">
+    <label>Username</label><br/>
+    <input type="text" name="username" required /><br/>
+    <label>Email</label><br/>
+    <input type="email" name="email" required /><br/>
+    <label>Password</label><br/>
+    <input type="password" name="password" required /><br/>
+    <button type="submit">Register</button>
+</form>
+<p>Sudah punya akun? <a href="{{ url_for('login') }}">Login</a></p>
+{% endblock %}
