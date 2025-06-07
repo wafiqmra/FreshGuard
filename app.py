@@ -136,6 +136,18 @@ def add_product():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+@app.route('/delete_product/<int:product_id>', methods=['POST'])
+def delete_product(product_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM products WHERE id = %s AND user_id = %s", (product_id, session['user_id']))
+    mysql.connection.commit()
+    flash("Produk berhasil dihapus", "success")
+    return redirect(url_for('home'))
+
+
 def send_expiry_notifications():
     """Kirim email notif ke semua user yang punya produk mendekati expired."""
     cur = mysql.connection.cursor()
@@ -148,7 +160,7 @@ def send_expiry_notifications():
 
     users_notified = set()
 
-    for email, username, product_name, expiry_date, product_id in all_products:
+    for email, username, product_name, expiry_date, in all_products:
         if isinstance(expiry_date, str):
             expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
 
