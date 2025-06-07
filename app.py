@@ -27,18 +27,48 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def save_image_file(image_file):
+    if image_file and allowed_file(image_file.filename):
+        filename = secure_filename(image_file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        image_file.save(filepath)
+        return filename
+    return None
+
+def get_product_by_id(product_id):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, product_name, description, expiry_date, image FROM products WHERE id = %s AND user_id = %s",
+                (product_id, session.get('user_id')))
+    row = cur.fetchone()
+    if row:
+        return {
+            'id': row[0],
+            'product_name': row[1],
+            'description': row[2],
+            'expiry_date': row[3],
+            'image_filename': row[4]
+        }
+    return None
+
+def update_product(product_id, name, desc, expiry, image_filename):
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        UPDATE products SET product_name=%s, description=%s, expiry_date=%s, image=%s
+        WHERE id=%s AND user_id=%s
+    """, (name, desc, expiry, image_filename, product_id, session.get('user_id')))
+    mysql.connection.commit()
+
 @app.route('/')
 def home():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     send_expiry_notifications()
 
     cur = mysql.connection.cursor()
     cur.execute("SELECT id, product_name, description, expiry_date, image FROM products WHERE user_id=%s", (session['user_id'],))
     products = cur.fetchall()
 
-    # Check notifikasi produk mendekati kadaluarsa
     near_expiry_products = []
     for p in products:
         expiry_date = p[3]
@@ -58,7 +88,6 @@ def signup():
         hashed_password = generate_password_hash(password)
 
         cur = mysql.connection.cursor()
-        # Cek user/email sudah ada?
         cur.execute("SELECT id FROM users WHERE email=%s OR username=%s", (email, username))
         existing = cur.fetchone()
         if existing:
@@ -107,7 +136,6 @@ def add_product():
     description = request.form['description']
     expiry_date = request.form['expiry_date']
 
-    # Upload gambar
     if 'image' not in request.files:
         flash("Tidak ada file gambar", "danger")
         return redirect(url_for('home'))
@@ -147,20 +175,47 @@ def delete_product(product_id):
     flash("Produk berhasil dihapus", "success")
     return redirect(url_for('home'))
 
+@app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
+def edit_product(product_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    product = get_product_by_id(product_id)
+    if not product:
+        flash("Produk tidak ditemukan.", "danger")
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        new_name = request.form['product_name']
+        new_desc = request.form['description']
+        new_expiry = request.form['expiry_date']
+
+        if 'image' in request.files and request.files['image'].filename != '':
+            image_file = request.files['image']
+            filename = save_image_file(image_file)
+        else:
+            filename = product['image_filename']
+
+        update_product(product_id, new_name, new_desc, new_expiry, filename)
+        flash("Produk berhasil diupdate!", "success")
+        return redirect(url_for('home'))
+
+    # GET request -> render edit form dengan data produk lama
+    return render_template('edit_product.html', product=product)
+
 
 def send_expiry_notifications():
-    """Kirim email notif ke semua user yang punya produk mendekati expired."""
     cur = mysql.connection.cursor()
     cur.execute("""
-    SELECT u.email, u.username, p.product_name, p.expiry_date, p.id
-    FROM users u JOIN products p ON u.id = p.user_id
-    WHERE p.notified = FALSE
+        SELECT u.email, u.username, p.product_name, p.expiry_date, p.id
+        FROM users u JOIN products p ON u.id = p.user_id
+        WHERE p.notified = FALSE
     """)
     all_products = cur.fetchall()
 
     users_notified = set()
 
-    for email, username, product_name, expiry_date, in all_products:
+    for email, username, product_name, expiry_date, product_id in all_products:
         if isinstance(expiry_date, str):
             expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
 
@@ -174,12 +229,11 @@ def send_expiry_notifications():
                 recipients=[email]
             )
             msg.body = f"Halo {username}, produk '{product_name}' Anda mendekati masa kadaluarsa pada tanggal {expiry_date}. Segera gunakan atau buang produk tersebut."
-            
+
             try:
                 mail.send(msg)
                 print(f"Email terkirim ke {email} untuk produk {product_name}")
-    
-                # tandai produk sebagai sudah dikirimi notifikasi
+
                 cur2 = mysql.connection.cursor()
                 cur2.execute("UPDATE products SET notified = TRUE WHERE id = %s", (product_id,))
                 mysql.connection.commit()
@@ -187,9 +241,6 @@ def send_expiry_notifications():
             except Exception as e:
                 print(f"Gagal kirim email ke {email}: {e}")
 
-
-
-# Cron job / scheduler bisa pakai APScheduler, di sini kita buat route manual trigger (for demo)
 @app.route('/send_notifications')
 def send_notifications():
     send_expiry_notifications()
@@ -205,8 +256,6 @@ def test_email():
         return "Email test berhasil dikirim!"
     except Exception as e:
         return f"Gagal kirim email: {e}"
-
-
 
 if __name__ == '__main__':
     app.secret_key = app.config['SECRET_KEY']
