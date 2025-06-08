@@ -1,45 +1,197 @@
 {% extends "layout.html" %}
-{% block title %}Edit Product{% endblock %}
+{% block title %}Edit Produk{% endblock %}
+
 {% block content %}
-<div class="form-container">
-    <h1><i class="fas fa-edit"></i> Edit Product</h1>
-    
+<div class="form-container glass-card">
+    <div class="form-header">
+        <h1><i class="fas fa-edit"></i> Edit Produk</h1>
+        <a href="{{ url_for('home') }}" class="back-link">
+            <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
+        </a>
+    </div>
+
     <form action="{{ url_for('edit_product', product_id=product['id']) }}" method="post" enctype="multipart/form-data">
         <div class="form-group">
-            <label>Product Name:</label>
-            <input type="text" name="product_name" value="{{ product['product_name'] }}" required>
+            <label class="form-label">Nama Produk</label>
+            <input type="text" name="product_name" class="form-control" 
+                   value="{{ product['product_name'] }}" required>
         </div>
         
         <div class="form-group">
-            <label>Description:</label>
-            <textarea name="description" rows="4" required>{{ product['description'] }}</textarea>
+            <label class="form-label">Deskripsi</label>
+            <textarea name="description" class="form-control" rows="4" required>{{ product['description'] }}</textarea>
         </div>
         
         <div class="form-group">
-            <label>Expiration Date:</label>
-            <input type="date" name="expiry_date" value="{{ product['expiry_date'].strftime('%Y-%m-%d') if product['expiry_date'] else '' }}" required>
+            <label class="form-label">Tanggal Kadaluarsa</label>
+            <input type="date" name="expiry_date" class="form-control" 
+                   value="{{ product['expiry_date'].strftime('%Y-%m-%d') if product['expiry_date'] else '' }}" required>
         </div>
         
         <div class="form-group">
-            <label>Current Product Photo:</label>
-            {% if product['image_filename'] %}
-                <div class="current-image">
-                    <img src="{{ url_for('uploaded_file', filename=product['image_filename']) }}" alt="Current Product Photo" width="200">
-                </div>
-            {% else %}
-                <p>No product photo available.</p>
-            {% endif %}
+            <label class="form-label">Gambar Saat Ini</label>
+            <div class="current-image-container">
+                {% if product['image_filename'] %}
+                    <img src="{{ url_for('uploaded_file', filename=product['image_filename']) }}" 
+                         alt="Current Product Image" class="current-image">
+                {% else %}
+                    <div class="no-image">
+                        <i class="fas fa-image"></i>
+                        <span>Tidak ada gambar</span>
+                    </div>
+                {% endif %}
+            </div>
         </div>
         
         <div class="form-group">
-            <label>Change Photo (optional):</label>
-            <input type="file" name="image" accept="image/*">
+            <label class="form-label">Ganti Gambar (opsional)</label>
+            <div class="file-upload">
+                <label class="upload-label">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Pilih Gambar Baru</span>
+                    <input type="file" name="image" accept="image/*" hidden>
+                </label>
+                <span class="file-name">Belum ada file dipilih</span>
+            </div>
+            <small class="form-text">Biarkan kosong jika tidak ingin mengganti gambar</small>
         </div>
         
         <div class="form-actions">
-            <button type="submit"><i class="fas fa-save"></i> Update Product</button>
-            <a href="{{ url_for('home') }}" class="cancel-btn">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Simpan Perubahan
+            </button>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Batal
+            </a>
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block css %}
+<style>
+.form-container {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.form-header h1 {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+}
+
+.back-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.back-link:hover {
+    color: var(--primary-dark);
+}
+
+.current-image-container {
+    margin-top: 0.5rem;
+    border: 1px dashed #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    background: #f9f9f9;
+}
+
+.current-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 6px;
+    object-fit: contain;
+}
+
+.no-image {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: #999;
+    padding: 2rem;
+}
+
+.no-image i {
+    font-size: 2rem;
+}
+
+.file-upload {
+    margin-top: 0.5rem;
+}
+
+.upload-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.2rem;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-label:hover {
+    background: var(--primary-dark);
+}
+
+.file-name {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.form-text {
+    color: #666;
+    font-size: 0.85rem;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 576px) {
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block js %}
+<script>
+// Update file name display
+document.querySelector('input[type="file"]').addEventListener('change', function(e) {
+    const fileName = e.target.files[0] ? e.target.files[0].name : 'Belum ada file dipilih';
+    document.querySelector('.file-name').textContent = fileName;
+});
+</script>
 {% endblock %}

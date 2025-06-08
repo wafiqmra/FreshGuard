@@ -469,3 +469,85 @@ textarea.form-control {
         justify-content: center;
     }
 }
+
+/* Add these to your existing style.css */
+
+/* Logo styling */
+.logo-text {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.logo-text span {
+    color: var(--primary);
+}
+
+/* New button styles */
+.btn {
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+}
+
+.btn i {
+    font-size: 1rem;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 200, 151, 0.2);
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: var(--dark);
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+    transform: translateY(-2px);
+}
+
+/* Alert card styling */
+.alert-card {
+    border-left: 4px solid var(--accent);
+    background: rgba(255, 214, 102, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hero-content h1 {
+        font-size: 2rem;
+    }
+    
+    .hero-content p {
+        font-size: 1rem;
+    }
+    
+    .stat-card {
+        min-width: 150px;
+        padding: 1rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

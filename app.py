@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, date
 from flask_mail import Mail, Message
 from config import Config
 from utils import is_near_expiry
@@ -13,6 +13,33 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Add this to app.py (before your routes)
+
+@app.template_test('date')
+def is_date(value):
+    """Test if a value is a date object"""
+    from datetime import date
+    return isinstance(value, date)
+
+# Make sure this context processor is present
+@app.context_processor
+def utility_processor():
+    def string_to_date(date_string, format='%Y-%m-%d'):
+        from datetime import datetime
+        return datetime.strptime(date_string, format).date()
+    
+    return dict(
+        is_near_expiry=is_near_expiry,
+        string_to_date=string_to_date
+    )
+
+# Add this to app.py
+@app.template_test('date')
+def is_date(value):
+    """Test if a value is a date object"""
+    from datetime import date
+    return isinstance(value, date)
 
 mysql = MySQL(app)
 mail = Mail(app)
@@ -60,44 +87,54 @@ def update_product(product_id, name, desc, expiry, image_filename):
 
 @app.route('/')
 def home():
-    try:
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
 
-        send_expiry_notifications()
+    send_expiry_notifications()
 
-        cur = mysql.connection.cursor()
-        cur.execute("""
-            SELECT id, product_name, description, expiry_date, image 
-            FROM products 
-            WHERE user_id=%s
-            ORDER BY expiry_date ASC
-        """, (session['user_id'],))
-        products = cur.fetchall()
-        cur.close()
+    cur = mysql.connection.cursor()
+    
+    # Get all products
+    cur.execute("""
+        SELECT id, product_name, description, expiry_date, image, created_at 
+        FROM products 
+        WHERE user_id=%s
+        ORDER BY expiry_date ASC
+    """, (session['user_id'],))
+    products = cur.fetchall()
+    
+    # Get recent products (last 5 added)
+    cur.execute("""
+        SELECT id, product_name, description, expiry_date, image, created_at 
+        FROM products 
+        WHERE user_id=%s
+        ORDER BY created_at DESC
+        LIMIT 5
+    """, (session['user_id'],))
+    recent_products = cur.fetchall()
+    
+    cur.close()
 
-        near_expiry_products = []
-        today = datetime.now().date()
+    today = datetime.now().date()
+    near_expiry_products = []
+    expired_products = []
+    
+    for p in products:
+        expiry_date = p[3]
+        if isinstance(expiry_date, str):
+            expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
         
-        for p in products:
-            expiry_date = p[3]
-            if isinstance(expiry_date, str):
-                expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
-            if is_near_expiry(expiry_date):
-                near_expiry_products.append(p)
+        if expiry_date < today:
+            expired_products.append(p)
+        elif is_near_expiry(expiry_date):
+            near_expiry_products.append(p)
 
-        return render_template('index.html', 
-                            products=products, 
-                            near_expiry_products=near_expiry_products,
-                            today=today)
-    except MySQLdb.Error as e:
-        app.logger.error(f"Database error: {e}")
-        flash("Error accessing your products. Please try again.", "danger")
-        return redirect(url_for('login'))
-    except Exception as e:
-        app.logger.error(f"Unexpected error: {e}")
-        flash("An unexpected error occurred", "danger")
-        return redirect(url_for('login'))
+    return render_template('index.html', 
+                         products=products,
+                         recent_products=recent_products,
+                         near_expiry_products=near_expiry_products,
+                         expired_products=expired_products,
+                         today=today)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -180,6 +217,12 @@ def add_product():
 
     return redirect(url_for('home'))
 
+@app.route('/add_product_page')
+def add_product_page():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('add_product.html')
+
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -222,6 +265,43 @@ def edit_product(product_id):
 
     # GET request -> render edit form dengan data produk lama
     return render_template('edit_product.html', product=product)
+
+@app.route('/products')
+def products():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        SELECT id, product_name, description, expiry_date, image, created_at 
+        FROM products 
+        WHERE user_id=%s
+        ORDER BY expiry_date ASC
+    """, (session['user_id'],))
+    raw_products = cur.fetchall()
+    cur.close()
+
+    # Convert all dates to date objects
+    products = []
+    today = datetime.today().date()
+    expired_products = []
+    
+    for p in raw_products:
+        # Convert expiry_date if it's a string
+        expiry_date = p[3] if isinstance(p[3], date) else datetime.strptime(p[3], '%Y-%m-%d').date()
+        
+        # Create a new tuple with the converted date
+        product = (p[0], p[1], p[2], expiry_date, p[4], p[5])
+        products.append(product)
+        
+        if expiry_date < today:
+            expired_products.append(product)
+
+    return render_template('products.html',
+                         products=products,
+                         expired_products=expired_products,
+                         today=today)
+
 
 
 def send_expiry_notifications():
