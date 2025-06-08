@@ -33,4 +33,7 @@ jobs:
             --image gcr.io/turnkey-chimera-460001-p0/freshguard-image \
             --region us-central1 \
             --platform managed \
-            --allow-unauthenticated
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 1
