@@ -2,14 +2,15 @@ name: Deploy to Google Cloud Run
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout source code
+    - name: Checkout code
       uses: actions/checkout@v3
 
     - name: Authenticate to Google Cloud
@@ -28,5 +29,4 @@ jobs:
           --image gcr.io/turnkey-chimera-460001-p0/freshguard-image \
           --region us-central1 \
           --platform managed \
-          --allow-unauthenticated \
-          --set-env-vars=SECRET_KEY=ini_secret_key_rahasia,MYSQL_USER=root,MYSQL_PASSWORD=,MYSQL_DB=freshguard,MYSQL_UNIX_SOCKET=/cloudsql/turnkey-chimera-460001-p0:us-central1:freshguard-uas,MAIL_SERVER=smtp.gmail.com,MAIL_PORT=587,MAIL_USE_TLS=True,MAIL_USE_SSL=False,MAIL_USERNAME=heydisisme222@gmail.com,MAIL_PASSWORD=cmssqjgxwjnulzhu,MAIL_DEFAULT_SENDER=heydisisme222@gmail.com
+          --allow-unauthenticated
