@@ -236,7 +236,7 @@ def delete_product(product_id):
     cur.execute("DELETE FROM products WHERE id = %s AND user_id = %s", (product_id, session['user_id']))
     mysql.connection.commit()
     flash("Produk berhasil dihapus", "success")
-    return redirect(url_for('home'))
+    return redirect(url_for('products'))
 
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
@@ -300,9 +300,12 @@ def products():
     return render_template('products.html',
                          products=products,
                          expired_products=expired_products,
-                         today=today)
+                         today=today,
+                         request=request)
 
-
+@app.route('/about')
+def about_page():
+    return render_template('about.html')
 
 def send_expiry_notifications():
     cur = mysql.connection.cursor()

@@ -1,0 +1,311 @@
+{% extends "layout.html" %}
+{% block title %}About Us{% endblock %}
+
+{% block content %}
+<section class="about-section">
+    <div class="about-container">
+        <!-- Back Button -->
+        <div class="back-button-container">
+            <a href="{{ url_for('home') }}" class="back-button">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+        
+        <h1>About FreshGuard</h1>
+        <div class="about-content">
+            <!-- Rest of your content remains the same -->
+            <div class="about-description">
+                <h2>Our Mission</h2>
+                <p>FreshGuard is an innovative platform designed to help households and businesses track food expiration dates efficiently. Our mission is to reduce food waste by providing smart tools to manage your pantry, fridge, and freezer contents.</p>
+                
+                <h2>How It Works</h2>
+                <p>The system allows you to:</p>
+                <ul>
+                    <li>Add products with their expiration dates</li>
+                    <li>Get notifications when items are nearing expiration</li>
+                    <li>Track your consumption patterns</li>
+                    <li>Generate reports on your food waste reduction</li>
+                </ul>
+            </div>
+            
+            <div class="team-section">
+                <h2>Meet Our Team</h2>
+                <div class="team-carousel">
+                    <div class="team-track">
+                        <div class="team-member">
+                            <div class="member-photo">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <h3>John Doe</h3>
+                            <p class="role">Lead Developer</p>
+                            <p>Responsible for the core system architecture and backend development.</p>
+                        </div>
+                        
+                        <div class="team-member active">
+                            <div class="member-photo">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <h3>Jane Smith</h3>
+                            <p class="role">UI/UX Designer</p>
+                            <p>Created the intuitive interface and user experience design.</p>
+                        </div>
+                        
+                        <div class="team-member">
+                            <div class="member-photo">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <h3>Michael Johnson</h3>
+                            <p class="role">Data Analyst</p>
+                            <p>Developed the analytics and reporting features of the platform.</p>
+                        </div>
+                    </div>
+                    <div class="carousel-controls">
+                        <button class="prev-btn"><i class="fas fa-chevron-left"></i></button>
+                        <button class="next-btn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block css %}
+<style>
+.about-section {
+    padding: 2rem 0;
+}
+
+.about-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.about-section h1 {
+    font-size: 2.5rem;
+    color: var(--primary);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.about-section h2 {
+    font-size: 1.8rem;
+    color: var(--primary-dark);
+    margin: 2rem 0 1rem 0;
+    border-bottom: 2px solid var(--primary-light);
+    padding-bottom: 0.5rem;
+}
+
+.about-description p {
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.about-description ul {
+    margin: 1rem 0 1rem 2rem;
+    line-height: 1.6;
+}
+
+.team-section {
+    margin: 3rem 0;
+}
+
+.team-carousel {
+    position: relative;
+    overflow: hidden;
+    margin: 2rem auto;
+    max-width: 900px;
+}
+
+.team-track {
+    display: flex;
+    transition: transform 0.5s ease;
+    padding: 1rem 0;
+}
+
+.team-member {
+    flex: 0 0 80%;
+    margin: 0 10%;
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    transition: all 0.3s ease;
+    opacity: 0.5;
+    transform: scale(0.9);
+}
+
+.team-member.active {
+    opacity: 1;
+    transform: scale(1);
+    z-index: 2;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.member-photo {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 1rem auto;
+    color: var(--primary);
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--primary-light);
+}
+
+.member-photo i {
+    font-size: 120px;
+    line-height: 120px;
+}
+
+.team-member h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-dark);
+}
+
+.role {
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.carousel-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.carousel-controls button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.carousel-controls button:hover {
+    background: var(--primary-dark);
+    transform: scale(1.1);
+}
+
+.contact-info {
+    background: var(--primary-light);
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.contact-info a {
+    color: var(--primary-dark);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.contact-info a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .team-member {
+        flex: 0 0 90%;
+        margin: 0 5%;
+    }
+    
+    .member-photo {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .member-photo i {
+        font-size: 100px;
+    }
+}
+
+.back-button-container {
+    margin-bottom: 1.5rem;
+}
+
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.back-button:hover {
+    background-color: var(--primary-light);
+    transform: translateX(-3px);
+}
+
+/* Rest of your existing styles */
+.about-section {
+    padding: 2rem 0;
+}
+
+.about-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.about-section h1 {
+    font-size: 2.5rem;
+    color: var(--primary);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+</style>
+{% endblock %}
+
+
+{% block js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const track = document.querySelector('.team-track');
+    const members = document.querySelectorAll('.team-member');
+    const prevBtn = document.querySelector('.prev-btn');
+    const nextBtn = document.querySelector('.next-btn');
+    let currentIndex = 1;
+    
+    function updateCarousel() {
+        const offset = -currentIndex * 100;
+        track.style.transform = `translateX(${offset}%)`;
+        
+        members.forEach((member, index) => {
+            if (index === currentIndex) {
+                member.classList.add('active');
+            } else {
+                member.classList.remove('active');
+            }
+        });
+    }
+    
+    prevBtn.addEventListener('click', function() {
+        currentIndex = (currentIndex > 0) ? currentIndex - 1 : members.length - 1;
+        updateCarousel();
+    });
+    
+    nextBtn.addEventListener('click', function() {
+        currentIndex = (currentIndex < members.length - 1) ? currentIndex + 1 : 0;
+        updateCarousel();
+    });
+    
+    // Initialize
+    updateCarousel();
+});
+</script>
+{% endblock %}
