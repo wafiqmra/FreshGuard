@@ -214,13 +214,48 @@
 
 {% block js %}
 <script>
-// Image preview functionality
+// Enhanced form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.product-form');
+    const expiryDateInput = document.querySelector('input[name="expiry_date"]');
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    expiryDateInput.min = today;
+    
+    form.addEventListener('submit', function(e) {
+        const productName = document.querySelector('input[name="product_name"]').value.trim();
+        
+        if (productName.length < 3) {
+            e.preventDefault();
+            alert('Product name must be at least 3 characters long');
+            return false;
+        }
+        
+        const expiryDate = expiryDateInput.value;
+        if (!expiryDate) {
+            e.preventDefault();
+            alert('Please select an expiration date');
+            return false;
+        }
+        
+        return true;
+    });
+});
+
+// Enhanced image upload preview
 const imageUpload = document.getElementById('imageUpload');
 const imagePreview = document.getElementById('imagePreview');
 
 imageUpload.addEventListener('change', function() {
     const file = this.files[0];
     if (file) {
+        if (file.size > 2 * 1024 * 1024) { // 2MB limit
+            alert('Image size should be less than 2MB');
+            this.value = '';
+            return;
+        }
+        
         const reader = new FileReader();
         
         reader.addEventListener('load', function() {
@@ -229,6 +264,14 @@ imageUpload.addEventListener('change', function() {
             img.src = this.result;
             imagePreview.appendChild(img);
             img.style.display = 'block';
+            
+            // Add hover effect
+            img.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.1)';
+            });
+            img.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
         });
         
         reader.readAsDataURL(file);

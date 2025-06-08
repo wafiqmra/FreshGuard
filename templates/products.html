@@ -395,3 +395,34 @@
 
 {% endblock %}
 
+{% block js %}
+<script>
+// Enhanced delete confirmation
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('.btn-danger');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const productName = this.closest('.product-card').querySelector('h3').textContent;
+            
+            if (confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+                window.location.href = this.href;
+            }
+        });
+    });
+});
+
+// Image preview hover effect
+const productImages = document.querySelectorAll('.product-image-container img');
+productImages.forEach(img => {
+    img.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.05)';
+    });
+    img.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+    });
+});
+</script>
+{% endblock %}
+

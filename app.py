@@ -1,5 +1,8 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+import time
+import logging
+from logging.handlers import RotatingFileHandler
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -9,24 +12,33 @@ from config import Config
 from utils import is_near_expiry
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
+# Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Add this to app.py (before your routes)
+# Configure logging
+handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=3)
+handler.setLevel(logging.INFO)
+app.logger.addHandler(handler)
 
+# Initialize extensions
+mysql = MySQL(app)
+mail = Mail(app)
+
+# Ensure upload folder exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Template utilities
 @app.template_test('date')
 def is_date(value):
-    """Test if a value is a date object"""
-    from datetime import date
     return isinstance(value, date)
 
-# Make sure this context processor is present
 @app.context_processor
 def utility_processor():
     def string_to_date(date_string, format='%Y-%m-%d'):
-        from datetime import datetime
         return datetime.strptime(date_string, format).date()
     
     return dict(
@@ -34,25 +46,24 @@ def utility_processor():
         string_to_date=string_to_date
     )
 
-# Add this to app.py
-@app.template_test('date')
-def is_date(value):
-    """Test if a value is a date object"""
-    from datetime import date
-    return isinstance(value, date)
+# Database connection helper
+def get_db_connection():
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            conn = mysql.connection
+            conn.ping(True)  # Reconnect if closed
+            return conn
+        except Exception as e:
+            if attempt == max_retries - 1:
+                app.logger.error(f"Database connection failed after {max_retries} attempts: {str(e)}")
+                raise
+            time.sleep(1)
 
-mysql = MySQL(app)
-mail = Mail(app)
-
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Pastikan folder uploads ada
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
+# File upload helper
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def save_image_file(image_file):
     if image_file and allowed_file(image_file.filename):
@@ -62,100 +73,132 @@ def save_image_file(image_file):
         return filename
     return None
 
+# Product helpers
 def get_product_by_id(product_id):
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT id, product_name, description, expiry_date, image FROM products WHERE id = %s AND user_id = %s",
-                (product_id, session.get('user_id')))
-    row = cur.fetchone()
-    if row:
-        return {
-            'id': row[0],
-            'product_name': row[1],
-            'description': row[2],
-            'expiry_date': row[3],
-            'image_filename': row[4]
-        }
-    return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, product_name, description, expiry_date, image 
+            FROM products 
+            WHERE id = %s AND user_id = %s
+        """, (product_id, session.get('user_id')))
+        row = cur.fetchone()
+        
+        if row:
+            return {
+                'id': row[0],
+                'product_name': row[1],
+                'description': row[2],
+                'expiry_date': row[3],
+                'image_filename': row[4]
+            }
+        return None
+    except Exception as e:
+        app.logger.error(f"Error getting product: {str(e)}")
+        raise
+    finally:
+        cur.close() if 'cur' in locals() else None
 
 def update_product(product_id, name, desc, expiry, image_filename):
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        UPDATE products SET product_name=%s, description=%s, expiry_date=%s, image=%s
-        WHERE id=%s AND user_id=%s
-    """, (name, desc, expiry, image_filename, product_id, session.get('user_id')))
-    mysql.connection.commit()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE products 
+            SET product_name=%s, description=%s, expiry_date=%s, image=%s
+            WHERE id=%s AND user_id=%s
+        """, (name, desc, expiry, image_filename, product_id, session.get('user_id')))
+        conn.commit()
+    except Exception as e:
+        app.logger.error(f"Error updating product: {str(e)}")
+        raise
+    finally:
+        cur.close() if 'cur' in locals() else None
 
+# Routes
 @app.route('/')
 def home():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    send_expiry_notifications()
-
-    cur = mysql.connection.cursor()
-    
-    # Get all products
-    cur.execute("""
-        SELECT id, product_name, description, expiry_date, image, created_at 
-        FROM products 
-        WHERE user_id=%s
-        ORDER BY expiry_date ASC
-    """, (session['user_id'],))
-    products = cur.fetchall()
-    
-    # Get recent products (last 5 added)
-    cur.execute("""
-        SELECT id, product_name, description, expiry_date, image, created_at 
-        FROM products 
-        WHERE user_id=%s
-        ORDER BY created_at DESC
-        LIMIT 5
-    """, (session['user_id'],))
-    recent_products = cur.fetchall()
-    
-    cur.close()
-
-    today = datetime.now().date()
-    near_expiry_products = []
-    expired_products = []
-    
-    for p in products:
-        expiry_date = p[3]
-        if isinstance(expiry_date, str):
-            expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d').date()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         
-        if expiry_date < today:
-            expired_products.append(p)
-        elif is_near_expiry(expiry_date):
-            near_expiry_products.append(p)
+        # Get all products
+        cur.execute("""
+            SELECT id, product_name, description, expiry_date, image, created_at 
+            FROM products 
+            WHERE user_id=%s
+            ORDER BY expiry_date ASC
+        """, (session['user_id'],))
+        products = cur.fetchall()
+        
+        # Get recent products
+        cur.execute("""
+            SELECT id, product_name, description, expiry_date, image, created_at 
+            FROM products 
+            WHERE user_id=%s
+            ORDER BY created_at DESC
+            LIMIT 5
+        """, (session['user_id'],))
+        recent_products = cur.fetchall()
+        
+        today = datetime.now().date()
+        near_expiry_products = []
+        expired_products = []
+        
+        for p in products:
+            expiry_date = p[3] if isinstance(p[3], date) else datetime.strptime(p[3], '%Y-%m-%d').date()
+            
+            if expiry_date < today:
+                expired_products.append(p)
+            elif is_near_expiry(expiry_date):
+                near_expiry_products.append(p)
 
-    return render_template('index.html', 
-                         products=products,
-                         recent_products=recent_products,
-                         near_expiry_products=near_expiry_products,
-                         expired_products=expired_products,
-                         today=today)
+        return render_template('index.html', 
+                            products=products,
+                            recent_products=recent_products,
+                            near_expiry_products=near_expiry_products,
+                            expired_products=expired_products,
+                            today=today)
+    except Exception as e:
+        flash("Terjadi kesalahan saat memuat data", "danger")
+        app.logger.error(f"Home error: {str(e)}")
+        return render_template('index.html', products=[])
+    finally:
+        cur.close() if 'cur' in locals() else None
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        hashed_password = generate_password_hash(password)
+        try:
+            username = request.form['username']
+            email = request.form['email']
+            password = request.form['password']
+            hashed_password = generate_password_hash(password)
 
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT id FROM users WHERE email=%s OR username=%s", (email, username))
-        existing = cur.fetchone()
-        if existing:
-            flash("Email atau username sudah terdaftar", 'danger')
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM users WHERE email=%s OR username=%s", (email, username))
+            if cur.fetchone():
+                flash("Email atau username sudah terdaftar", 'danger')
+                return redirect(url_for('signup'))
+
+            cur.execute("""
+                INSERT INTO users (username, email, password) 
+                VALUES (%s, %s, %s)
+            """, (username, email, hashed_password))
+            conn.commit()
+            flash("Registrasi berhasil, silahkan login", "success")
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash("Terjadi kesalahan saat registrasi", "danger")
+            app.logger.error(f"Signup error: {str(e)}")
             return redirect(url_for('signup'))
-
-        cur.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-                    (username, email, hashed_password))
-        mysql.connection.commit()
-        flash("Registrasi berhasil, silahkan login", "success")
-        return redirect(url_for('login'))
+        finally:
+            cur.close() if 'cur' in locals() else None
 
     return render_template('signup.html')
 
@@ -360,6 +403,25 @@ def test_email():
     except Exception as e:
         return f"Gagal kirim email: {e}"
 
+# Health check endpoint
+@app.route('/health')
+def health_check():
+    try:
+        # Test database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        
+        # Test email
+        if app.config['MAIL_USERNAME']:
+            with mail.connect() as smtp:
+                smtp.noop()
+        
+        return jsonify({"status": "healthy"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
 if __name__ == '__main__':
     app.secret_key = app.config['SECRET_KEY']
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

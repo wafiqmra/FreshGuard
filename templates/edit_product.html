@@ -188,10 +188,65 @@
 
 {% block js %}
 <script>
-// Update file name display
-document.querySelector('input[type="file"]').addEventListener('change', function(e) {
-    const fileName = e.target.files[0] ? e.target.files[0].name : 'Belum ada file dipilih';
-    document.querySelector('.file-name').textContent = fileName;
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    const expiryDateInput = document.querySelector('input[name="expiry_date"]');
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    expiryDateInput.min = today;
+    
+    form.addEventListener('submit', function(e) {
+        const productName = document.querySelector('input[name="product_name"]').value.trim();
+        
+        if (productName.length < 3) {
+            e.preventDefault();
+            alert('Product name must be at least 3 characters long');
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Image upload preview
+    const imageUpload = document.querySelector('input[name="image"]');
+    const fileNameDisplay = document.querySelector('.file-name');
+    
+    imageUpload.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) { // 2MB limit
+                alert('Image size should be less than 2MB');
+                this.value = '';
+                fileNameDisplay.textContent = 'Belum ada file dipilih';
+                return;
+            }
+            
+            fileNameDisplay.textContent = file.name;
+            
+            // Preview new image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const currentImageContainer = document.querySelector('.current-image-container');
+                if (currentImageContainer.querySelector('.no-image')) {
+                    currentImageContainer.innerHTML = '';
+                }
+                
+                const img = currentImageContainer.querySelector('img') || document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'current-image';
+                img.alt = 'New Product Image';
+                
+                if (!currentImageContainer.contains(img)) {
+                    currentImageContainer.appendChild(img);
+                }
+            };
+            reader.readAsDataURL(file);
+        } else {
+            fileNameDisplay.textContent = 'Belum ada file dipilih';
+        }
+    });
 });
 </script>
 {% endblock %}

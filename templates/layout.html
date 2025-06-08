@@ -112,6 +112,37 @@
 </footer>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-    {% block js %}{% endblock %}
+    {% block js %}
+    <script>
+// Loading spinner for all forms
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function() {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                submitBtn.disabled = true;
+            }
+        });
+    });
+
+    // Close flash messages
+    document.querySelectorAll('.close-flash').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.parentElement.remove();
+        });
+    });
+});
+
+// Auto-close flash messages after 5 seconds
+setTimeout(() => {
+    document.querySelectorAll('.flash-message').forEach(msg => {
+        msg.classList.add('animate__fadeOutRight');
+        setTimeout(() => msg.remove(), 500);
+    });
+}, 5000);
+</script>
+    {% endblock %}
 </body>
 </html>

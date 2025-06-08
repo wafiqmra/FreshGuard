@@ -749,3 +749,69 @@ textarea.form-control {
         justify-content: center;
     }
 }
+
+* Loading spinner */
+.fa-spinner {
+    margin-right: 8px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.product-card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Transition effects */
+.btn, .product-item, .action-btn, .upload-label {
+    transition: all 0.3s ease;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .hero-stats {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .stat-card {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+/* Enhanced form controls */
+.form-control:disabled, .form-control[readonly] {
+    background-color: #f8f9fa;
+    opacity: 1;
+}
+
+/* Better focus states */
+.btn:focus, .form-control:focus, .upload-label:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 200, 151, 0.25);
+}
+
+/* Accessibility improvements */
+[role="button"], button, a {
+    cursor: pointer;
+}
+
+/* Print styles */
+@media print {
+    .glass-nav, .glass-footer, .btn {
+        display: none !important;
+    }
+    
+    body {
+        padding: 20px;
+        color: #000;
+    }
+}
