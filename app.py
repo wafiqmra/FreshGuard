@@ -13,6 +13,9 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['MYSQL_HOST'] = None
+app.config['MYSQL_UNIX_SOCKET'] = Config.MYSQL_UNIX_SOCKET
+
 
 # Add this to app.py (before your routes)
 
@@ -362,4 +365,5 @@ def test_email():
 
 if __name__ == '__main__':
     app.secret_key = app.config['SECRET_KEY']
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 8080))  # default ke 8080 jika PORT tidak di-set
+    app.run(host='0.0.0.0', port=port, debug=True)
