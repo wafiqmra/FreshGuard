@@ -12,7 +12,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
- 
+
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v1
       with:
@@ -23,11 +23,14 @@ jobs:
       with:
         project_id: 'turnkey-chimera-460001-p0'
 
+    - name: Configure Docker to use gcloud
+      run: gcloud auth configure-docker
+
     - name: Build Docker image
       run: |
         docker build -t gcr.io/turnkey-chimera-460001-p0/freshguard-image .
 
-    - name: Push Docker image to Google Container Registry
+    - name: Push Docker image to GCR
       run: |
         docker push gcr.io/turnkey-chimera-460001-p0/freshguard-image
 
