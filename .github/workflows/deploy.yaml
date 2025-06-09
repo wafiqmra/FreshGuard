@@ -23,8 +23,16 @@ jobs:
       with:
         project_id: 'turnkey-chimera-460001-p0'
 
+    - name: Build Docker image
+      run: |
+        docker build -t gcr.io/turnkey-chimera-460001-p0/freshguard-image .
+
+    - name: Push Docker image to Google Container Registry
+      run: |
+        docker push gcr.io/turnkey-chimera-460001-p0/freshguard-image
+
     - name: Deploy to Cloud Run
-      run: |-
+      run: |
         gcloud run deploy freshguard-app \
           --image gcr.io/turnkey-chimera-460001-p0/freshguard-image \
           --region us-central1 \
